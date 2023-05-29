@@ -1,0 +1,9 @@
+﻿global using JwtNet6.Models.Models;
+global using JwtNet6.Models.Clases;
+global using JwtNet6.Models.Entities;
+global using Microsoft.AspNetCore.Mvc;
+global using JwtNet6.API.Data;
+global using Microsoft.EntityFrameworkCore;
+global using JwtNet6.API.Handlers;
+global using JwtNet6.API.Helpers;
+global using JwtNet6.Models.DTOs.Users;

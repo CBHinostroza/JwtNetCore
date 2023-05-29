@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33516.290
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JwtNet6.API", "JwtNet6.API\JwtNet6.API.csproj", "{8CC2670B-6FE3-4451-B64C-8B9415D9EC2C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JwtNet6.Models", "JwtNet6.Models\JwtNet6.Models.csproj", "{87A03A99-8969-4644-81D0-211AD7C39F5C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8CC2670B-6FE3-4451-B64C-8B9415D9EC2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CC2670B-6FE3-4451-B64C-8B9415D9EC2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CC2670B-6FE3-4451-B64C-8B9415D9EC2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CC2670B-6FE3-4451-B64C-8B9415D9EC2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87A03A99-8969-4644-81D0-211AD7C39F5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87A03A99-8969-4644-81D0-211AD7C39F5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87A03A99-8969-4644-81D0-211AD7C39F5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87A03A99-8969-4644-81D0-211AD7C39F5C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FDA4DF03-CA1E-411F-9856-8D603183DC40}
+	EndGlobalSection
+EndGlobal
