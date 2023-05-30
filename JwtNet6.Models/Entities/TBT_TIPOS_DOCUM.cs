@@ -1,6 +1,6 @@
 ﻿namespace JwtNet6.Models.Entities
 {
-    public class TBT_TIPOS_DOCUM : Auditoria
+    public class TBT_TIPOS_DOCUM : LogAuditoria
     {
         [Key]
         public int IDD_TIPOS_DOCUM { get; set; }

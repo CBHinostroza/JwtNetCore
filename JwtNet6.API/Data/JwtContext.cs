@@ -16,6 +16,8 @@ namespace JwtNet6.API.Data
 
         }
 
+        //Esta entidad representa la tabla UserRefreshTokens, que guarda tokens de actualización para usuarios válidos
+        public DbSet<UserRefreshTokens> UserRefreshTokens { get; set; }
         public DbSet<TBT_TIPOS_DOCUM> TBT_TIPOS_DOCUM { get; set; }
     }
 }

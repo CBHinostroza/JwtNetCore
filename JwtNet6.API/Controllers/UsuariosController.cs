@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace JwtNet6.API.Controllers
@@ -17,19 +16,22 @@ namespace JwtNet6.API.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly JwtSettings _JwtSettings;
+        private readonly JwtContext _jwtContext;
 
         public UsuariosController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            IOptions<JwtSettings> JwtSettings)
+            IOptions<JwtSettings> JwtSettings,
+            JwtContext jwtContext)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _JwtSettings = JwtSettings.Value;
+            _jwtContext = jwtContext;
         }
 
-        [HttpPost("Login")]
         [AllowAnonymous]
+        [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] UserAuthenticateRequest model)
         {
             //Validamos las anotaciones del modelo
@@ -37,7 +39,6 @@ namespace JwtNet6.API.Controllers
                 return BadRequest(ModelState);
 
             //Buscamos el usuario
-
             var usuario = await _userManager.FindByNameAsync(model.Username);
             if (usuario == null)
                 return BadRequest(UtilitariosHelper.GetUsuarioCredenciales());
@@ -56,26 +57,22 @@ namespace JwtNet6.API.Controllers
                 return BadRequest(UtilitariosHelper.GetUsuarioCredenciales());
             }
 
-            //Generar Token
-            JwtSecurityToken jwtSecurityToken = await GenerateJwToken(usuario);
-            UserAuthenticateResponse response = new UserAuthenticateResponse();
-            response.Id = usuario.Id;
-            response.JwtToken = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
-            response.Email = usuario.Email;
-            response.UserName = usuario.UserName;
-
-            var roles = await _userManager.GetRolesAsync(usuario).ConfigureAwait(false);
-            response.roles = roles.ToList();
-            response.IsVerified = usuario.EmailConfirmed;
-
-            var refreshToken = GenerateRefreshToken(GeneratedIPAddress());
-            response.RefreshToken = refreshToken.Token;
+            //Response
+            UserAuthenticateResponse response = new UserAuthenticateResponse()
+            {
+                Id = usuario.Id,
+                Email = usuario.Email,
+                UserName = usuario.UserName,
+                IsVerified = usuario.EmailConfirmed,
+                roles = (List<string>)await _userManager.GetRolesAsync(usuario).ConfigureAwait(false),
+                Token = new JwtSecurityTokenHandler().WriteToken(await GenerateJwToken(usuario)),
+                RefreshToken = GenerateRefreshToken(usuario)
+            };
 
             return Ok(response);
         }
 
         [HttpPost("Guardar")]
-        [AllowAnonymous]
         public async Task<IActionResult> Guardar([FromBody] UserCreateRequest model)
         {
             //Validamos las anotaciones del modelo
@@ -113,6 +110,104 @@ namespace JwtNet6.API.Controllers
             return Ok(resultado);
         }
 
+        [AllowAnonymous]
+        [HttpPost("Refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] UserAccessTokenRequest model)
+        {
+
+            var principal = GetPrincipalFromExpiredToken(model.AccessToken);
+
+            if (principal == null)
+            {
+                return BadRequest(UtilitariosHelper.GetTokenInvalido());
+            }
+
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            string username = principal.Identity.Name;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+
+
+            var token = await _jwtContext.UserRefreshTokens.FirstOrDefaultAsync(t => t.UserName == username);
+
+            if (token == null ||
+                token.RefreshToken != model.RefreshToken
+                || token.RefreshTokenExpiryTime <= DateTime.Now)
+            {
+                return BadRequest(UtilitariosHelper.GetTokenInvalido());
+            }
+
+            var usuario = await _userManager.FindByNameAsync(token.UserName);
+            var newAccessToken = await GenerateJwToken(usuario);
+            var newRefreshToken = GenerateRefreshToken(usuario);
+
+            return Ok(new
+            {
+                accessToken = new JwtSecurityTokenHandler().WriteToken(newAccessToken),
+                refreshToken = newRefreshToken
+            });
+        }
+
+        private string GenerateRefreshToken(ApplicationUser model)
+        {
+            //Registramos el RefreshToken por usuario o actualizamos la información
+
+            var UserRefreshTokens = _jwtContext.UserRefreshTokens.FirstOrDefault(t => t.UserName == model.UserName);
+
+            if (UserRefreshTokens == null)
+            {
+                var RefreshTokens = new UserRefreshTokens()
+                {
+                    RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(_JwtSettings.DurationInInDays),
+                    RefreshToken = UtilitariosHelper.RandomTokenStrin(),
+                    UserName = model.UserName,
+                    IsActive = true,
+                    Created = DateTime.UtcNow,
+                    CreatedByIp = UtilitariosHelper.GetIpAddress(),
+                    Revoked = null,
+                    RevokedByIp = null,
+                    COD_USUAR_CREAC = model.UserName,
+                    COD_USUAR_MODIF = model.UserName,
+                    FEC_USUAR_CREAC = DateTime.Now,
+                    FEC_USUAR_MODIF = DateTime.Now
+                };
+                _jwtContext.UserRefreshTokens.Add(RefreshTokens);
+                _jwtContext.SaveChanges();
+                return RefreshTokens.RefreshToken;
+            }
+            else
+            {
+                UserRefreshTokens.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(_JwtSettings.DurationInInDays);
+                UserRefreshTokens.RefreshToken = UtilitariosHelper.RandomTokenStrin();
+                UserRefreshTokens.Created = DateTime.UtcNow;
+                UserRefreshTokens.CreatedByIp = UtilitariosHelper.GetIpAddress();
+                UserRefreshTokens.COD_USUAR_MODIF = model.UserName;
+                UserRefreshTokens.FEC_USUAR_MODIF = DateTime.UtcNow;
+                _jwtContext.UserRefreshTokens.Update(UserRefreshTokens);
+                _jwtContext.SaveChanges();
+                return UserRefreshTokens.RefreshToken;
+            }
+        }
+        private ClaimsPrincipal? GetPrincipalFromExpiredToken(string? token)
+        {
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = false,
+                ValidateLifetime = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_JwtSettings.Key))
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+            if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                throw new SecurityTokenException("Token Invalido");
+
+            return principal;
+        }
         private async Task<JwtSecurityToken> GenerateJwToken(ApplicationUser model)
         {
             #region Obtener permisos y roles del usuario en caso tengamos configurado
@@ -129,12 +224,13 @@ namespace JwtNet6.API.Controllers
 
             #endregion
 
-            string ipAddress = IpHelper.GetIpAddress();
+            string ipAddress = UtilitariosHelper.GetIpAddress();
 
             var claims = new[]
             {
                 //CHA: Claims de configuración
                 new Claim(JwtRegisteredClaimNames.Sub,model.UserName),
+                new Claim(ClaimTypes.Name,model.UserName),
                 new Claim(JwtRegisteredClaimNames.Jti,Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email,model.Email),
 
@@ -157,35 +253,7 @@ namespace JwtNet6.API.Controllers
                 signingCredentials: signingCredentials
                 );
 
-
             return JwtSecurityToken;
-        }
-
-        private RefreshToken GenerateRefreshToken(string ipAddress)
-        {
-            return new RefreshToken()
-            {
-                Token = RandomTokenStrin(),
-                Expires = DateTime.Now.AddMinutes(5),
-                Created = DateTime.Now,
-                CreatedByIp = ipAddress
-            };
-        }
-
-        private string RandomTokenStrin()
-        {
-            using var random = RandomNumberGenerator.Create();
-            var randomBytes = new byte[40];
-            random.GetBytes(randomBytes);
-            return BitConverter.ToString(randomBytes).Replace("-", "");
-        }
-
-        private string GeneratedIPAddress()
-        {
-            if (Request.Headers.ContainsKey("X-Forwarded-For"))
-                return Request.Headers["X-Forwarded-For"];
-            else
-                return HttpContext.Connection.RemoteIpAddress!.MapToIPv4().ToString();
         }
     }
 }

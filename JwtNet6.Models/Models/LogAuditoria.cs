@@ -1,6 +1,6 @@
 ﻿namespace JwtNet6.Models.Models
 {
-    public class Auditoria
+    public class LogAuditoria
     {
         public string COD_USUAR_CREAC { get; set; } = string.Empty;
         public DateTime FEC_USUAR_CREAC { get; set; }

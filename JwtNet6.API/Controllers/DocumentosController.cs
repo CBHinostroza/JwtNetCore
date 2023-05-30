@@ -2,17 +2,17 @@
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TiposDocumentosController : ControllerBase
+    public class DocumentosController : ControllerBase
     {
         private readonly JwtContext _jwtContext;
 
-        public TiposDocumentosController(JwtContext jwtContext)
+        public DocumentosController(JwtContext jwtContext)
         {
             this._jwtContext = jwtContext;
         }
 
-        [HttpGet("ListarTiposDocumentos")]
-        public async Task<IEnumerable<TBT_TIPOS_DOCUM>> ListarTiposDocumentos()
+        [HttpGet("ListarDocumentos")]
+        public async Task<IEnumerable<TBT_TIPOS_DOCUM>> ListarDocumentos()
         {
             return await _jwtContext.TBT_TIPOS_DOCUM.ToListAsync();
         }
